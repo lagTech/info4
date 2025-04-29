@@ -4,15 +4,17 @@
 # https://aka.ms/yaml
 
 trigger:
-- master
+- main
 
-pool: "default"
+name: DockerPackagingPipeline
+
+pool: "ubuntu-latest"
 
 variables:
 - name: DockerRegistryServiceConnectionName
   value: 'Docker Registry Dynamic'
 - name: AzureSubscription
-  value: 'Azure subscription 1(970fcef5-9c23-4f7d-a11b-5a96d104f066)'
+  value: 'info4'
 
 steps:
 
