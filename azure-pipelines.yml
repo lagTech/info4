@@ -4,7 +4,9 @@
 # https://aka.ms/yaml
 
 # trigger:
-# - master
+# - main
+
+name: DeployInfrastructure
 
 pool: new_agent_pool
 
@@ -14,6 +16,7 @@ pool: new_agent_pool
 # Add AcrPull to pipeline service principale !!!!
 
 variables:
+- group: New variable group 29-Apr
 - name: AppRegistrationName
   value: 'MVC_Dynamic'
 
@@ -23,7 +26,7 @@ variables:
 
   # Resource group ainsi que l'acronyme utiliser pour créer le nom des resources
 - name: RG
-  value: 'ulri'
+  value: 'ulr'
  
   # Resources
 - name: RG_Location
@@ -39,7 +42,7 @@ variables:
 - name: BlobName
   value: '$(RG)blobstore'
 - name: SBusName
-  value: '$(RG)Sb'
+  value: '$(RG)Sbu'
 - name: EventHubName
   value: '$(RG)EventHub'
 - name: CosmosName
@@ -76,8 +79,6 @@ variables:
 
 - name: AzureSubscription
   value: 'info4'
-- name: AzureDevOpsPAT #https://learn.microsoft.com/en-us/azure/devops/cli/log-in-via-pat?view=azure-devops&tabs=windows
-  value: '2yvMRRMUlRzTssEqr5hX7axmVFQgPvBl618v0eM204p1giWuzMgLJQQJ99BDACAAAAAAAAAAAAASAZDOWzH3'
 
 - name: ServiceConnectionExists
   value: false
