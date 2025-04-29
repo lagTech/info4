@@ -1,0 +1,356 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: idaaregistry.azurecr.io/api:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: AppConfigurationEndpoints
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AppConfigurationEndpoints
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_CLIENT_ID
+            - name: AZURE_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_TENANT_ID
+            - name: AZURE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_CLIENT_SECRET
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-deployment
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 30
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mvc-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mvc
+  template:
+    metadata:
+      labels:
+        app: mvc
+    spec:
+      containers:
+        - name: mvc
+          image: idaaregistry.azurecr.io/mvc:latest
+          ports:
+            - containerPort: 8081
+          resources:
+            requests:
+              cpu: "100m"
+            limits:
+              cpu: "500m"
+          env:
+            - name: AppConfigurationEndpoints
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AppConfigurationEndpoints
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_CLIENT_ID
+            - name: AZURE_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_TENANT_ID
+            - name: AZURE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_CLIENT_SECRET
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: mvc-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: mvc-deployment
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-content-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-content
+  template:
+    metadata:
+      labels:
+        app: worker-content
+    spec:
+      containers:
+        - name: worker-content
+          image: idaaregistry.azurecr.io/worker_content:latest
+          env:
+            - name: AppConfigurationEndpoints
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AppConfigurationEndpoints
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_CLIENT_ID
+            - name: AZURE_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_TENANT_ID
+            - name: AZURE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_CLIENT_SECRET
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: keda-auth-sb
+spec:
+  secretTargetRef:
+    - parameter: connection
+      name: my-secret
+      key: ConnectionKedaStringSB
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: worker-content-scaledobject
+spec:
+  scaleTargetRef:
+    name: worker-content-deployment
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  triggers:
+    - type: azure-servicebus
+      authenticationRef:
+        name: keda-auth-sb
+      metadata:
+        queueName: contentsafetymessage
+        messageCount: "2"
+        namespace: idaaSb
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-image-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-image
+  template:
+    metadata:
+      labels:
+        app: worker-image
+    spec:
+      containers:
+        - name: worker-image
+          image: idaaregistry.azurecr.io/worker_image:latest
+          env:
+            - name: AppConfigurationEndpoints
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AppConfigurationEndpoints
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_CLIENT_ID
+            - name: AZURE_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_TENANT_ID
+            - name: AZURE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_CLIENT_SECRET
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: worker-image-scaledobject
+spec:
+  scaleTargetRef:
+    name: worker-image-deployment
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  triggers:
+    - type: azure-servicebus
+      authenticationRef:
+        name: keda-auth-sb
+      metadata:
+        queueName: imageresizemessage
+        messageCount: "2"
+        namespace: idaaSb
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-db-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-db
+  template:
+    metadata:
+      labels:
+        app: worker-db
+    spec:
+      containers:
+        - name: worker-db
+          image: idaaregistry.azurecr.io/worker_db:latest
+          env:
+            - name: AppConfigurationEndpoints
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AppConfigurationEndpoints
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_CLIENT_ID
+            - name: AZURE_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_TENANT_ID
+            - name: AZURE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: AZURE_CLIENT_SECRET
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: keda-auth-eh
+spec:
+  secretTargetRef:
+    - parameter: connection
+      name: my-secret
+      key: ConnectionKedaStringEventHub
+    - parameter: storageConnection
+      name: my-secret
+      key: ConnectionKedaStringBlob
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: worker-db-scaledobject
+spec:
+  scaleTargetRef:
+    name: worker-db-deployment
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  triggers:
+    - type: azure-eventhub
+      authenticationRef:
+        name: keda-auth-eh
+      metadata:
+        eventHubName: event
+        consumerGroup: consumer
+        unprocessedEventThreshold: "5"
+        storageAccountContainer: synchro
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: api
+  ports:
+    - port: 8080
+      targetPort: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mvc-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: mvc
+  ports:
+    - port: 8081
+      targetPort: 8081

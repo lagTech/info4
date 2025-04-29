@@ -1,0 +1,64 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": { "value": "eastus" },
+    "VaultName": { "value": "UlriKeyVault" },
+    "AppConfigName": { "value": "UlriAppConfiguration" },
+    "LogAnalyticsName": { "value": "LogAnalytics" },
+    "ApplicationInsightName": { "value": "ApplicationInsights" },
+    "ServiceBusName": { "value": "UlriSb" },
+    "ServiceBusQueue1Name": { "value": "imageresizemessage" },
+    "ServiceBusQueue2Name": { "value": "contentsafetymessage" },
+    "NoSQLname": { "value": "ulricosmos" },
+    "NoSQLdatabaseName": { "value": "ApplicationDB" },
+    "storageAccountName": { "value": "ulriblobstore" },
+    "storageBlobContainerName1": { "value": "unvalidated" },
+    "storageBlobContainerName2": { "value": "validated" },
+    "storageBlobContainerName3": { "value": "synchro" },
+    "AzureAdClientId": { "value": "eda7e9d7-bf91-4584-a215-54c8eb0834db" },
+    "AzureAdDomainName": { "value": "lacmagoulrichgmail.onmicrosoft.com" },
+    "ContentSafetyname": { "value": "UlriContentSafety" },
+    "resourceGroupName": { "value": "Ulri" },
+    "EventHubName": { "value": "UlriEventHub" },
+    "EventHubHubName": { "value": "event" },
+    "EventHubConsumerGroupName": { "value": "consumer" },
+    "ContainerRegistryName": { "value": "UlriRegistry" },
+
+    // Content Safety Stuff
+
+    "virtualNetworkType": {
+      "value": "None"
+    },
+    "vnet": {
+      "value": {}
+    },
+    "ipRules": {
+      "value": []
+    },
+    "identity": {
+      "value": {
+        "type": "SystemAssigned"
+      }
+    },
+    "privateEndpoints": {
+      "value": []
+    },
+    "privateDnsZone": {
+      "value": "[$item.privateDnsZoneConfiguration.integrateWithPrivateDnsZone]"
+    },
+    "isCommitmentPlanForDisconnectedContainerEnabled": {
+      "value": false
+    },
+    "commitmentPlanForDisconnectedContainer": {
+      "value": {
+        "current": {
+          "count": 9
+        },
+        "hostingModel": "DisconnectedContainer",
+        "planType": "Lenovo",
+        "autoRenew": true
+      }
+    }
+  }
+}

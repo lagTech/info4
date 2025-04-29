@@ -1,0 +1,305 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+# trigger:
+# - master
+
+pool: new_agent_pool
+
+# Add Owner roles to pipeline service principale !!!!
+# Add Global Administrator in AD to pipeline service principale !!!!
+# Add Key Vault Secrets Officer to pipeline sevice principale !!!!
+# Add AcrPull to pipeline service principale !!!!
+
+variables:
+- name: AppRegistrationName
+  value: 'MVC_Dynamic'
+
+- name: ApplicationId
+- name: TenantId
+- name: ClientSecret
+
+  # Resource group ainsi que l'acronyme utiliser pour créer le nom des resources
+- name: RG
+  value: 'ulri'
+ 
+  # Resources
+- name: RG_Location
+  value: 'eastus'
+- name: Vault
+  value: '$(RG)KeyVault'
+- name: AppConfig
+  value: '$(RG)AppConfiguration'
+- name: LogAnalytics
+  value: 'LogAnalyticsName'
+- name: ApplicationInsight
+  value: 'ApplicationInsight'
+- name: BlobName
+  value: '$(RG)blobstore'
+- name: SBusName
+  value: '$(RG)Sb'
+- name: EventHubName
+  value: '$(RG)EventHub'
+- name: CosmosName
+  value: '$(RG)cosmosdb'
+- name: CosmosDatabaseName
+  value: 'ApplicationDB'
+- name: ContentName
+  value: '$(RG)ContentSafety'
+- name: ContainerRegistryName
+  value: '$(RG)Registry'
+
+- name: BlobContainer1
+  value: 'unvalidated'
+- name: BlobContainer2
+  value: 'validated'
+- name: BlobContainer3
+  value: 'synchro'
+  
+- name: ServiceBusQueue1Name
+  value: '/imageresizemessage'
+- name: ServiceBusQueue2Name
+  value: '/contentsafetymessage'
+  
+- name: EventHubHubName
+  value: 'event'
+- name: EventHubConsumerGroupName
+  value: 'consumer'
+
+- name: InfrastructureFolder
+  value: 'CloudInfrastructure'
+
+- name: DockerRegistryServiceConnectionName
+  value: 'Docker Registry Dynamic'
+
+- name: AzureSubscription
+  value: 'info4'
+- name: AzureDevOpsPAT #https://learn.microsoft.com/en-us/azure/devops/cli/log-in-via-pat?view=azure-devops&tabs=windows
+  value: '2yvMRRMUlRzTssEqr5hX7axmVFQgPvBl618v0eM204p1giWuzMgLJQQJ99BDACAAAAAAAAAAAAASAZDOWzH3'
+
+- name: ServiceConnectionExists
+  value: false
+- name: ServiceConnectionId
+  value: ''
+  
+steps:
+  - task: AzureCLI@2
+    displayName: App Registration creation
+    inputs:
+      azureSubscription: $(AzureSubscription)
+      scriptType: 'ps'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+          # Get the current tenant ID
+          $tenantId = $(az account show --query tenantId -o tsv)
+          Write-Host "Authenticated to Azure with Tenant ID: $tenantId"
+
+          # Check if the app registration already exists
+          $appId = $(az ad app list --filter "displayName eq '$(AppRegistrationName)'" --query "[].appId" -o tsv)
+
+          if ($appId) {
+                Write-Host "App registration already exists with Application ID: $appId"
+                
+                az ad app delete --id $appId
+                az ad sp delete --id $appId
+
+                Write-Host "Existing App registration deleted"
+            }
+
+          Write-Host "Creating a new app registration..."
+
+          # Create the app registration with redirect URL, single-tenant type, and ID tokens enabled
+          # https://github.com/pnp/cli-microsoft365/issues/5870
+          $appOutput = az ad app create --display-name "$(AppRegistrationName)" --identifier-uris "api://$tenantId/$(AppRegistrationName)" --sign-in-audience AzureADMyOrg --web-redirect-uris "https://localhost/signin-oidc" "https://localhost" --enable-id-token-issuance true --output json
+
+          # Create the app registration
+          $appId = ($appOutput | ConvertFrom-Json).appId
+
+          # Create a new client secret
+          $clientSecretOutput = az ad app credential reset --id $appId --end-date (Get-Date).AddYears(2).ToString("yyyy-MM-dd") --query password -o tsv
+          $clientSecret = $clientSecretOutput.Trim()
+
+          # Grant Microsoft Graph API permissions
+          Write-Host "Adding API permissions..."
+          az ad app permission add --id $appId --api "00000003-0000-0000-c000-000000000000" --api-permissions "e1fe6dd8-ba31-4d61-89e7-88639da4683d=Scope" "37f7f235-527c-4136-accd-4a02d197296e=Scope" "14dad69e-099b-42c9-810b-d002981feec1=Scope"
+          
+          #Write-Host "Granting API permissions..."
+          #az ad app permission admin-consent --id $appId
+
+          #Assign rights to App Registration
+          $subscriptionId=$(az account show --query id -o tsv)    # Subscription ID
+          az ad sp create --id $appId                             # create Service Principale
+
+          # Assign "App Compliance Automation Administrator" role
+          az role assignment create --assignee $appId --role "App Compliance Automation Administrator" --subscription $subscriptionId --scope "/subscriptions/$subscriptionId"
+
+          # Assign "Key Vault Secrets Officer" role
+          az role assignment create --assignee $appId --role "Key Vault Secrets Officer" --subscription $subscriptionId --scope "/subscriptions/$subscriptionId"
+
+          # Assign "App Configuration Data Reader" role
+          az role assignment create --assignee $appId --role "App Configuration Data Reader" --subscription $subscriptionId --scope "/subscriptions/$subscriptionId"
+
+          # Assign "Cosmos DB Account Reader Role"
+          az role assignment create --assignee $appId --role "Cosmos DB Account Reader Role" --subscription $subscriptionId --scope "/subscriptions/$subscriptionId"
+
+          # Assign "Cosmos DB Operator" role
+          az role assignment create --assignee $appId --role "Cosmos DB Operator" --subscription $subscriptionId --scope "/subscriptions/$subscriptionId"
+
+          # Assign "Storage Blob Data Contributor" role
+          az role assignment create --assignee $appId --role "Storage Blob Data Contributor" --subscription $subscriptionId --scope "/subscriptions/$subscriptionId"
+
+          # Get Publisher Domain Name
+          $publisherDomainName = $(az ad app show --id $appId --query "publisherDomain" -o tsv)
+          Write-Host "Publisher Domain Name: $publisherDomainName"
+
+          Write-Host "##vso[task.setvariable variable=ApplicationId]$AzureAdDomainName"
+          Write-Host "##vso[task.setvariable variable=ApplicationId]$appId"
+          Write-Host "##vso[task.setvariable variable=TenantId]$tenantId"
+          Write-Host "##vso[task.setvariable variable=ClientSecret]$clientSecret"
+
+          Write-Host "App registration created with Application ID: $appId"
+
+  - task: AzureResourceManagerTemplateDeployment@3
+    displayName: ARM Deployment
+    inputs:
+      deploymentScope: 'Resource Group'
+      azureResourceManagerConnection: $(AzureSubscription)
+      action: 'Create Or Update Resource Group'
+      resourceGroupName: '$(RG)'
+      location: '$(RG_Location)'
+      templateLocation: 'Linked artifact'
+      csmFile: '$(Build.SourcesDirectory)\$(InfrastructureFolder)\azuredeploy.json'
+      csmParametersFile: '$(Build.SourcesDirectory)\$(InfrastructureFolder)\azuredeploy.parameters.json'
+      overrideParameters: '-ContentSafetyname $(ContentName) -NoSQLname $(CosmosName) -NoSQLdatabaseName $(CosmosDatabaseName) -ServiceBusName $(SBusName) -location $(RG_Location) -VaultName $(Vault) -AppConfigName $(AppConfig) -LogAnalyticsName $(LogAnalytics) -ApplicationInsightName $(ApplicationInsight) -storageAccountName $(BlobName) -storageBlobContainerName1 $(BlobContainer1) -storageBlobContainerName2 $(BlobContainer2) -storageBlobContainerName3 $(BlobContainer3) -EventHubName $(EventHubName) -ContainerRegistryName $(ContainerRegistryName) -AzureAdDomainName $(AzureAdDomainName) -AzureAdClientId $(AzureAdClientId) -ServiceBusQueue1Name $(ServiceBusQueue1Name) -ServiceBusQueue2Name $(ServiceBusQueue2Name) -EventHubHubName $(EventHubHubName) -EventHubConsumerGroupName $(EventHubConsumerGroupName) -AzureAdClientId $(ApplicationId) -AzureAdDomainName $(AzureAdDomainName)'
+      deploymentMode: 'Incremental'
+      deploymentOutputs: 'Deployment1'
+
+  - task: AzureCLI@2
+    displayName: Write secrets to Azure Key Vault
+    inputs:
+      azureSubscription: $(AzureSubscription)  # Your service connection name
+      scriptType: 'ps'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        # Add secrets to the Key Vault
+        az keyvault secret set --vault-name $(Vault) --name "ClientID" --value "$(ApplicationId)"
+        az keyvault secret set --vault-name $(Vault)  --name "TenantID" --value "$(TenantId)"
+        az keyvault secret set --vault-name $(Vault)  --name "ClientSecret" --value "$(ClientSecret)"
+
+  - task: AzureCLI@2
+    displayName: 'Check Existing Service Connection'
+    inputs:
+      azureSubscription: $(AzureSubscription)
+      scriptType: 'ps'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        az extension add --name azure-devops
+        az config set extension.dynamic_install_allow_preview=true
+        $serviceConnectionName = "$(DockerRegistryServiceConnectionName)"
+        $existingServiceConnection = az devops service-endpoint list `
+          --project "$(System.TeamProject)" `
+          --organization "$(System.CollectionUri)" `
+          --query "[?name=='$serviceConnectionName']" `
+          --output json
+
+        if ($existingServiceConnection -eq "[]") {
+          Write-Host "Service connection does not exist."
+          Write-Host "##vso[task.setvariable variable=ServiceConnectionExists]false"
+        } else {
+          $serviceConnectionId = ($existingServiceConnection | ConvertFrom-Json)[0].id
+          Write-Host "Service connection already exists with ID: $serviceConnectionId"
+
+          # Deleting the existing service connection
+          Write-Host "Deleting existing service connection..."
+          az devops service-endpoint delete `
+            --id $serviceConnectionId `
+            --organization "$(System.CollectionUri)" `
+            --project "$(System.TeamProject)" `
+            --yes
+          Write-Host "Existing service connection deleted successfully."
+
+          # Indicating it can be recreated
+          Write-Host "##vso[task.setvariable variable=ServiceConnectionExists]false"
+        }
+    env:
+      AZURE_DEVOPS_EXT_PAT: $(AzureDevOpsPAT)
+
+  - task: PowerShell@2
+    displayName: 'Generate Service Connection JSON'
+    condition: eq(variables['ServiceConnectionExists'], 'false')
+    inputs:
+      targetType: 'inline'
+      script: |
+        $dockerRegistryUrl = "https://{0}" -f $(Deployment1.dockerRegistryUrl.value)
+        $dockerUsername = $(Deployment1.dockerUsername.value)
+        $dockerPassword = $(Deployment1.dockerPassword.value)
+        $serviceConnectionName = '$(DockerRegistryServiceConnectionName)'
+        $jsonFilePath = '$(System.DefaultWorkingDirectory)\service-endpoint-config.json'
+
+        $serviceEndpointJson = @{
+            data = @{
+                registrytype = 'Others'
+            }
+            authorization = @{
+                parameters = @{
+                    username = $dockerUsername
+                    password = $dockerPassword
+                    registry = $dockerRegistryUrl
+                }
+                scheme = 'UsernamePassword'
+            }
+            name = $serviceConnectionName
+            type = 'dockerregistry'
+        }
+
+        $serviceEndpointJsonString = $serviceEndpointJson | ConvertTo-Json -Depth 10 -Compress
+        [System.IO.File]::WriteAllBytes($jsonFilePath, [System.Text.Encoding]::UTF8.GetBytes($serviceEndpointJsonString))
+        Write-Host "JSON file generated at: $jsonFilePath"
+
+  - task: AzureCLI@2
+    displayName: 'Create Docker Registry Service Connection (Dynamic)'
+    condition: eq(variables['ServiceConnectionExists'], 'false')
+    inputs:
+      azureSubscription: $(AzureSubscription)
+      scriptType: 'ps'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        az extension add --name azure-devops
+        az config set extension.dynamic_install_allow_preview=true
+
+        # Create the service connection and capture the output
+        $serviceConnectionOutput = az devops service-endpoint create `
+          --service-endpoint-configuration "$(System.DefaultWorkingDirectory)\service-endpoint-config.json" `
+          --project "$(System.TeamProject)" `
+          --organization "$(System.CollectionUri)" `
+          --output json
+
+        # Extract the 'id' field from the output
+        $serviceConnectionId = ($serviceConnectionOutput | ConvertFrom-Json).id
+        Write-Host "Service connection created with ID: $serviceConnectionId"
+
+        # Set the ID as a pipeline variable
+        Write-Host "##vso[task.setvariable variable=ServiceConnectionId]$serviceConnectionId"
+
+    env:
+      AZURE_DEVOPS_EXT_PAT: $(AzureDevOpsPAT)
+
+  - task: AzureCLI@2
+    displayName: 'Grant Permissions for Service Connection'
+    condition: eq(variables['ServiceConnectionExists'], 'false')
+    inputs:
+      azureSubscription: $(AzureSubscription)
+      scriptType: 'ps'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        # Grant access to Project Collection Build Service account
+        az devops service-endpoint update `
+          --id $(ServiceConnectionId) `
+          --project "$(System.TeamProject)" `
+          --organization "$(System.CollectionUri)" `
+          --enable-for-all
+          
+    env:
+      AZURE_DEVOPS_EXT_PAT: $(AzureDevOpsPAT)

@@ -1,0 +1,328 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool: "default"
+
+variables:
+- name: DockerRegistryServiceConnectionName
+  value: 'Docker Registry Dynamic'
+- name: AzureSubscription
+  value: 'Azure subscription 1(970fcef5-9c23-4f7d-a11b-5a96d104f066)'
+
+steps:
+
+  - task: PowerShell@2
+    displayName: Remove ENV information from API
+    inputs:
+      targetType: 'inline'
+      script: |
+        # Define the path to the Dockerfile
+        $dockerfilePath = "$(Build.SourcesDirectory)/API/Dockerfile"
+        
+        # Check if the Dockerfile exists
+        if (-Not (Test-Path -Path $dockerfilePath)) {
+            Write-Host "Dockerfile not found at $dockerfilePath"
+            exit 1
+        }
+        
+        # Read the Dockerfile content into an array
+        $dockerfileContent = Get-Content -Path $dockerfilePath
+        
+        # Define the patterns to match (partial strings with wildcards)
+        $patternsToRemove = @(
+            "ENV AZURE_CLIENT_ID*",
+            "ENV AZURE_TENANT_ID*",
+            "ENV AZURE_CLIENT_SECRET*"
+        )
+        
+        # Initialize a collection to hold the updated Dockerfile content
+        $updatedDockerfileContent = @()
+        
+        # Loop through each line in the Dockerfile
+        foreach ($line in $dockerfileContent) {
+            $matchFound = $false
+        
+            # Check if the line matches any of the patterns
+            foreach ($pattern in $patternsToRemove) {
+                if ($line -like $pattern) {
+                    $matchFound = $true
+                    break
+                }
+            }
+        
+            # Add the line to the updated content only if no match was found
+            if (-Not $matchFound) {
+                $updatedDockerfileContent += $line
+            }
+        }
+        
+        # Write the updated content back to the Dockerfile
+        $updatedDockerfileContent | Set-Content -Path $dockerfilePath
+        
+        Write-Host "Lines matching the specified patterns have been removed from the Dockerfile."
+
+  - task: Docker@2
+    displayName: 'Packaging API'
+    inputs:
+      containerRegistry: $(DockerRegistryServiceConnectionName)
+      repository: 'API'
+      command: 'buildAndPush'
+      Dockerfile: './API/Dockerfile'
+      buildContext: '$(Build.SourcesDirectory)'
+      tags: |
+        $(Build.BuildId)
+        latest
+        
+  - task: PowerShell@2
+    displayName: Remove ENV information from MVC
+    inputs:
+      targetType: 'inline'
+      script: |
+        # Define the path to the Dockerfile
+        $dockerfilePath = "$(Build.SourcesDirectory)/MVC/Dockerfile"
+        
+        # Check if the Dockerfile exists
+        if (-Not (Test-Path -Path $dockerfilePath)) {
+            Write-Host "Dockerfile not found at $dockerfilePath"
+            exit 1
+        }
+        
+        # Read the Dockerfile content into an array
+        $dockerfileContent = Get-Content -Path $dockerfilePath
+        
+        # Define the patterns to match (partial strings with wildcards)
+        $patternsToRemove = @(
+            "ENV AZURE_CLIENT_ID*",
+            "ENV AZURE_TENANT_ID*",
+            "ENV AZURE_CLIENT_SECRET*"
+        )
+        
+        # Initialize a collection to hold the updated Dockerfile content
+        $updatedDockerfileContent = @()
+        
+        # Loop through each line in the Dockerfile
+        foreach ($line in $dockerfileContent) {
+            $matchFound = $false
+        
+            # Check if the line matches any of the patterns
+            foreach ($pattern in $patternsToRemove) {
+                if ($line -like $pattern) {
+                    $matchFound = $true
+                    break
+                }
+            }
+        
+            # Add the line to the updated content only if no match was found
+            if (-Not $matchFound) {
+                $updatedDockerfileContent += $line
+            }
+        }
+        
+        # Write the updated content back to the Dockerfile
+        $updatedDockerfileContent | Set-Content -Path $dockerfilePath
+        
+        Write-Host "Lines matching the specified patterns have been removed from the Dockerfile."
+
+  - task: Docker@2
+    displayName: 'Packaging MVC'
+    inputs:
+      containerRegistry: $(DockerRegistryServiceConnectionName)
+      repository: 'MVC'
+      command: 'buildAndPush'
+      Dockerfile: './MVC/Dockerfile'
+      buildContext: '$(Build.SourcesDirectory)'
+      tags: |
+        $(Build.BuildId)
+        latest
+
+  - task: PowerShell@2
+    displayName: Remove ENV information from Worker_Content
+    inputs:
+      targetType: 'inline'
+      script: |
+        # Define the path to the Dockerfile
+        $dockerfilePath = "$(Build.SourcesDirectory)/Worker_Content/Dockerfile"
+        
+        # Check if the Dockerfile exists
+        if (-Not (Test-Path -Path $dockerfilePath)) {
+            Write-Host "Dockerfile not found at $dockerfilePath"
+            exit 1
+        }
+        
+        # Read the Dockerfile content into an array
+        $dockerfileContent = Get-Content -Path $dockerfilePath
+        
+        # Define the patterns to match (partial strings with wildcards)
+        $patternsToRemove = @(
+            "ENV AZURE_CLIENT_ID*",
+            "ENV AZURE_TENANT_ID*",
+            "ENV AZURE_CLIENT_SECRET*"
+        )
+        
+        # Initialize a collection to hold the updated Dockerfile content
+        $updatedDockerfileContent = @()
+        
+        # Loop through each line in the Dockerfile
+        foreach ($line in $dockerfileContent) {
+            $matchFound = $false
+        
+            # Check if the line matches any of the patterns
+            foreach ($pattern in $patternsToRemove) {
+                if ($line -like $pattern) {
+                    $matchFound = $true
+                    break
+                }
+            }
+        
+            # Add the line to the updated content only if no match was found
+            if (-Not $matchFound) {
+                $updatedDockerfileContent += $line
+            }
+        }
+        
+        # Write the updated content back to the Dockerfile
+        $updatedDockerfileContent | Set-Content -Path $dockerfilePath
+        
+        Write-Host "Lines matching the specified patterns have been removed from the Dockerfile."
+
+
+  - task: Docker@2
+    displayName: 'Packaging Worker_Content'
+    inputs:
+      containerRegistry: $(DockerRegistryServiceConnectionName)
+      repository: 'Worker_Content'
+      command: 'buildAndPush'
+      Dockerfile: './Worker_Content/Dockerfile'
+      buildContext: '$(Build.SourcesDirectory)'
+      tags: |
+        $(Build.BuildId)
+        latest
+
+  - task: PowerShell@2
+    displayName: Remove ENV information from Worker_DB
+    inputs:
+      targetType: 'inline'
+      script: |
+        # Define the path to the Dockerfile
+        $dockerfilePath = "$(Build.SourcesDirectory)/Worker_DB/Dockerfile"
+        
+        # Check if the Dockerfile exists
+        if (-Not (Test-Path -Path $dockerfilePath)) {
+            Write-Host "Dockerfile not found at $dockerfilePath"
+            exit 1
+        }
+        
+        # Read the Dockerfile content into an array
+        $dockerfileContent = Get-Content -Path $dockerfilePath
+        
+        # Define the patterns to match (partial strings with wildcards)
+        $patternsToRemove = @(
+            "ENV AZURE_CLIENT_ID*",
+            "ENV AZURE_TENANT_ID*",
+            "ENV AZURE_CLIENT_SECRET*"
+        )
+        
+        # Initialize a collection to hold the updated Dockerfile content
+        $updatedDockerfileContent = @()
+        
+        # Loop through each line in the Dockerfile
+        foreach ($line in $dockerfileContent) {
+            $matchFound = $false
+        
+            # Check if the line matches any of the patterns
+            foreach ($pattern in $patternsToRemove) {
+                if ($line -like $pattern) {
+                    $matchFound = $true
+                    break
+                }
+            }
+        
+            # Add the line to the updated content only if no match was found
+            if (-Not $matchFound) {
+                $updatedDockerfileContent += $line
+            }
+        }
+        
+        # Write the updated content back to the Dockerfile
+        $updatedDockerfileContent | Set-Content -Path $dockerfilePath
+        
+        Write-Host "Lines matching the specified patterns have been removed from the Dockerfile."
+
+  - task: Docker@2
+    displayName: 'Packaging Worker_DB'
+    inputs:
+      containerRegistry: $(DockerRegistryServiceConnectionName)
+      repository: 'Worker_DB'
+      command: 'buildAndPush'
+      Dockerfile: './Worker_DB/Dockerfile'
+      buildContext: '$(Build.SourcesDirectory)'
+      tags: |
+        $(Build.BuildId)
+        latest
+
+  - task: PowerShell@2
+    displayName: Remove ENV information from Worker_Image
+    inputs:
+      targetType: 'inline'
+      script: |
+        # Define the path to the Dockerfile
+        $dockerfilePath = "$(Build.SourcesDirectory)/Worker_Image/Dockerfile"
+        
+        # Check if the Dockerfile exists
+        if (-Not (Test-Path -Path $dockerfilePath)) {
+            Write-Host "Dockerfile not found at $dockerfilePath"
+            exit 1
+        }
+        
+        # Read the Dockerfile content into an array
+        $dockerfileContent = Get-Content -Path $dockerfilePath
+        
+        # Define the patterns to match (partial strings with wildcards)
+        $patternsToRemove = @(
+            "ENV AZURE_CLIENT_ID*",
+            "ENV AZURE_TENANT_ID*",
+            "ENV AZURE_CLIENT_SECRET*"
+        )
+        
+        # Initialize a collection to hold the updated Dockerfile content
+        $updatedDockerfileContent = @()
+        
+        # Loop through each line in the Dockerfile
+        foreach ($line in $dockerfileContent) {
+            $matchFound = $false
+        
+            # Check if the line matches any of the patterns
+            foreach ($pattern in $patternsToRemove) {
+                if ($line -like $pattern) {
+                    $matchFound = $true
+                    break
+                }
+            }
+        
+            # Add the line to the updated content only if no match was found
+            if (-Not $matchFound) {
+                $updatedDockerfileContent += $line
+            }
+        }
+        
+        # Write the updated content back to the Dockerfile
+        $updatedDockerfileContent | Set-Content -Path $dockerfilePath
+        
+        Write-Host "Lines matching the specified patterns have been removed from the Dockerfile."
+
+  - task: Docker@2
+    displayName: 'Packaging Worker_Image'
+    inputs:
+      containerRegistry: $(DockerRegistryServiceConnectionName)
+      repository: 'Worker_Image'
+      command: 'buildAndPush'
+      Dockerfile: './Worker_Image/Dockerfile'
+      buildContext: '$(Build.SourcesDirectory)'
+      tags: |
+        $(Build.BuildId)
+        latest

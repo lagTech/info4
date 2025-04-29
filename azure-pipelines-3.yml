@@ -1,0 +1,132 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool: "default"
+
+variables:
+  # Resource group ainsi que l'acronyme utiliser pour créer le nom des resources
+- name: RG
+  value: 'ulri'
+
+- name: AzureSubscription
+  value: 'info4'
+
+  # Resources
+- name: RG_Location
+  value: 'eastus'
+- name: clusterName
+  value: '$(RG)kube'
+- name: dnsPrefix
+  value: '$(RG)kube'
+- name: agentCount
+  value: 3
+- name: agentVMSize
+  value: "standard_d2s_v3"
+- name: linuxAdminUsername
+  value: "kubeadmin"
+- name: sshRSAPublicKey
+
+- name: InfrastructureFolder
+  value: 'DeployKube'
+
+- name: AppConfigEndpoint # Ont pourrait apporter la variable du premier pipeline ...
+  value: 'https://ulriappconfiguration.azconfig.io'  
+
+steps:
+  - task: AzureCLI@2
+    displayName: Create SSH Key for Kube
+    inputs:
+      azureSubscription: $(AzureSubscription)
+      scriptType: 'ps'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        # Check if the SSH key exists
+        $keyExists = $(az sshkey list --resource-group $(RG) --query "[?name=='KubeSSHKey'] | length(@)" -o tsv)
+
+        if ($keyExists -eq 0) {
+          # Key doesn't exist, so create it
+          az sshkey create --name "KubeSSHKey" --resource-group $(RG)
+          Write-Host "SSH key 'KubeSSHKey' created successfully."
+        } else {
+          Write-Host "SSH key 'KubeSSHKey' already exists."
+        }
+
+        # Fetch the public key
+        $key = $(az sshkey show --name "KubeSSHKey" --resource-group $(RG) --query "publicKey" -o tsv)
+
+        # Output the public key
+        Write-Host $key
+        Write-Host "##vso[task.setvariable variable=sshRSAPublicKey]$key"
+
+  - script: |
+      echo "clusterName: $(clusterName)"
+      echo "location: $(RG_Location)"
+      echo "dnsPrefix: $(dnsPrefix)"
+      echo "agentCount: $(agentCount)"
+      echo "agentVMSize: $(agentVMsize)"
+      echo "linuxAdminUsername: $(linuxAdminUsername)"
+      echo "sshRSAPublicKey: $(sshRSAPublicKey)"
+    displayName: "Debug Parameter Values"
+
+  - task: AzureResourceManagerTemplateDeployment@3
+    displayName: ARM Deployment Kube Cluster
+    inputs:
+      deploymentScope: 'Resource Group'
+      azureResourceManagerConnection: $(AzureSubscription)
+      action: 'Create Or Update Resource Group'
+      resourceGroupName: '$(RG)'
+      location: '$(RG_Location)'
+      templateLocation: 'Linked artifact'
+      csmFile: '$(Build.SourcesDirectory)\$(InfrastructureFolder)\azuredeploy.json'
+      csmParametersFile: '$(Build.SourcesDirectory)\$(InfrastructureFolder)\azuredeploy.parameters.json'
+      overrideParameters: '-clusterName $(clusterName) -location $(RG_Location) -dnsPrefix $(dnsPrefix) -agentCount $(agentCount) -agentVMSize $(agentVMsize)'
+      deploymentMode: 'Incremental'
+      deploymentOutputs: 'Deployment1'
+
+  - task: AzureKeyVault@2
+    displayName: 'Reading Secrets'
+    inputs:
+      azureSubscription: $(AzureSubscription)
+      KeyVaultName: 'ulriKeyVault'
+      SecretsFilter: 'ClientID,TenantID,ClientSecret,ConnectionStringSB,ConnectionStringEventHub,ConnectionStringBlob'
+      RunAsPreJob: false
+
+  - task: AzureCLI@2
+    displayName: Create Kube Secrets
+    inputs:
+      azureSubscription: $(AzureSubscription)
+      scriptType: 'ps' # Use PowerShell
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        # Login to Azure CLI (this happens automatically with the AzureSubscription connection)
+        echo "Logged in to Azure CLI."
+
+        # Ensure kubectl is installed and connected to the cluster
+        az aks get-credentials --resource-group $(RG) --name $(clusterName) --overwrite-existing
+
+        # Create Kubernetes secrets
+        kubectl create secret generic my-secret --from-literal=AppConfigurationEndpoints=$(AppConfigEndpoint) --from-literal=AZURE_CLIENT_ID=$(ClientID) --from-literal=AZURE_TENANT_ID=$(TenantID) --from-literal=AZURE_CLIENT_SECRET=$(ClientSecret)  --from-literal=ConnectionKedaStringSB=$(ConnectionStringSB) --from-literal=ConnectionKedaStringEventHub=$(ConnectionStringEventHub) --from-literal=ConnectionKedaStringBlob=$(ConnectionStringBlob)
+        echo "Secrets created successfully!"
+
+  # - task: AzureCLI@2
+  #   displayName: Deploy YAML to Kubernetes Cluster
+  #   inputs:
+  #     azureSubscription: $(AzureSubscription)
+  #     scriptType: 'ps' # Use PowerShell
+  #     scriptLocation: 'inlineScript'
+  #     inlineScript: |
+  #       Log in to Azure CLI (already done with AzureSubscription)
+  #       echo "Deploying YAML to Kubernetes cluster."
+
+  #       Ensure kubectl is installed and connected to the cluster
+  #       az aks get-credentials --resource-group $(RG) --name $(clusterName) --overwrite-existing
+
+  #       Apply your deployment YAML file
+  #       kubectl apply --validate=false -f $(Build.SourcesDirectory)\$(InfrastructureFolder)\Cluster.yml
+
+  #       echo "YAML file deployed successfully!"

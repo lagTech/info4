@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "clusterName": {
+      "value": "ulriKube"
+    },
+    "location": {
+      "value": "eastus"
+    },
+    "dnsPrefix": {
+      "value": "ulrikube"
+    },
+    "osDiskSizeGB": {
+      "value": 0
+    },
+    "agentCount": {
+      "value": 3
+    },
+    "agentVMSize": {
+      "value": "standard_d2s_v3"
+    },
+    "linuxAdminUsername": {
+      "value": "kubeadmin"
+    },
+    "sshRSAPublicKey": {
+      "value": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDPKnMG2k3N3c8NOZg+mR0+I5nCCfzHyZrV/ez0JlN7+HqOaGQS0Jq/+YDxY0ZPtJrGcJxj6YmEzo+4rgFAjiYPc74yZcSxyVUe7bIJxEqW3BAG6gRlK/O5S9H7acfm4NYn2mpecZTIfSdFU4YXeTu6IHh2e3ds+GMhGkLbO1te4vWkGUsvoDt2SpAHAqlqFvNadNvqR2jnYd9zRypxncatGLzi7Z47xZzzhe3u0ZXmmLHGvarmnAZc/VrZoNHmVMrrL9V6OYjVaCepHhFpNy/9SPbXaG/ekA0ABPIwmMHlagtNhQ2s+MrfSV99YGI5C6iZBHWnGGr972Wi+BnFpH0oJuzXiEdO7sioMO1RsGnZbexi2Ka6+GJqq0tzxztmTKskhGAZahmn+4Fiv/f7lsjiJ+n5BEAFxfCGGsjv0X9XyKbNtZ47pvmOsO05xZudOv6vhvqrOrcNdxCfLoVEl2XbqwNsU0iGPi631EnID/LBhD6WPNC4GeVKlLPwf13RDEE= generated-by-azure"
+    }
+  }
+}

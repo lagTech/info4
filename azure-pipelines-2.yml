@@ -1,0 +1,98 @@
+
+trigger:
+- master
+
+pool: "default"
+
+variables:
+- name: AzureSubscription
+  value: 'Azure subscription 1(970fcef5-9c23-4f7d-a11b-5a96d104f066)'
+- name: AppRegistrationName
+  value: 'MVC_Dynamic'
+
+- name: RG
+  value: 'guro'
+
+  # Resources
+- name: RG_Location
+  value: 'eastus'
+- name: Vault
+  value: '$(RG)KeyVault'
+
+- name: AciName1        # non dynamique ...update pourrais être fait via un service connection pour app config
+  value: 'guroaciapi'
+- name: AciImage1
+  value: 'guroregistry.azurecr.io/api:latest'
+- name: AciPort1
+  value: '8080'
+  
+- name: AciName2
+  value: 'guroacimvc'
+- name: AciImage2
+  value: 'guroregistry.azurecr.io/mvc:latest'
+- name: AciPort2
+  value: '8081'
+
+- name: AppConfigEndpoint # Ont pourrait apporter la variable du premier pipeline ...
+  value: 'https://guroappconfiguration.azconfig.io'  
+- name: RegistryServer # Ont pourrait apporter la variable du premier pipeline ...
+  value: 'guroregistry.azurecr.io'  
+- name: RegistryUsername # Ont pourrait apporter la variable du premier pipeline ...
+  value: 'guroRegistry'
+
+- name: InfrastructureFolder
+  value: 'DeployACI\DeployACI'
+
+steps:
+  - task: AzureKeyVault@2
+    displayName: 'Reading Secrets'
+    inputs:
+      azureSubscription: $(AzureSubscription)
+      KeyVaultName: 'GuroKeyVault'
+      SecretsFilter: 'ClientID,TenantID,ClientSecret,ContainerRegistry'
+      RunAsPreJob: false
+
+  - task: AzureResourceManagerTemplateDeployment@3  #Review to remove ACR pull requirement 
+    displayName: ACI API Deployment
+    inputs:
+      deploymentScope: 'Resource Group'
+      azureResourceManagerConnection: $(AzureSubscription)
+      action: 'Create Or Update Resource Group'
+      resourceGroupName: '$(RG)'
+      location: '$(RG_Location)'
+      templateLocation: 'Linked artifact'
+      csmFile: '$(Build.SourcesDirectory)\$(InfrastructureFolder)\azuredeploy.json'
+      csmParametersFile: '$(Build.SourcesDirectory)\$(InfrastructureFolder)\azuredeploy.parameters.json'
+      overrideParameters: '-AciName $(AciName1) -AciImage $(AciImage1) -AciPort $(AciPort1) -AciClientId $(ClientID) -AciTenantId $(TenantID) -AciSecret $(ClientSecret) -AppConfigEndpoint $(AppConfigEndpoint) -RegistryServer $(RegistryServer) -RegistryUsername $(RegistryUsername) -RegistryPassword $(ContainerRegistry)'
+      deploymentMode: 'Incremental'
+      deploymentOutputs: 'Deployment1'
+  
+  - task: AzureResourceManagerTemplateDeployment@3  #Review to remove ACR pull requirement 
+    displayName: ACI MVC Deployment
+    inputs:
+      deploymentScope: 'Resource Group'
+      azureResourceManagerConnection: $(AzureSubscription)
+      action: 'Create Or Update Resource Group'
+      resourceGroupName: '$(RG)'
+      location: '$(RG_Location)'
+      templateLocation: 'Linked artifact'
+      csmFile: '$(Build.SourcesDirectory)\$(InfrastructureFolder)\azuredeploy.json'
+      csmParametersFile: '$(Build.SourcesDirectory)\$(InfrastructureFolder)\azuredeploy.parameters.json'
+      overrideParameters: '-AciName $(AciName2) -AciImage $(AciImage2) -AciPort $(AciPort2) -AciClientId $(ClientID) -AciTenantId $(TenantID) -AciSecret $(ClientSecret) -AppConfigEndpoint $(AppConfigEndpoint) -RegistryServer $(RegistryServer) -RegistryUsername $(RegistryUsername) -RegistryPassword $(ContainerRegistry)'
+      deploymentMode: 'Incremental'
+      deploymentOutputs: 'Deployment2'
+  
+  - task: AzureCLI@2
+    displayName: Update App Registration Redirect URL
+    inputs:
+      azureSubscription: $(AzureSubscription)
+      scriptType: 'ps'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+          Update the app registration with the public IP
+          $publicIp = $(Deployment2.PublicIP.value).Trim()
+          $appValue = $(az ad app list --display-name $(AppRegistrationName) --query "[].appId" -o tsv)
+          Write-Host "Public IP : publicIp"
+          Write-Host "https://$publicIp:8081/signin-oidc" "https://$publicIp:8081"
+          Write-Host "Updating the App Registration $appValue with the Public IP..."
+           az ad app update --id  --web-redirect-uris "https://$(Deployment2.PublicIP.value):8081/signin-oidc" "https://$(Deployment2.PublicIP.value):8081"

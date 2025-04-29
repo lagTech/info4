@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": { "value": "eastus" },
+    "AciName": { "value": "ulriaciapi" },
+    "AciImage": { "value": "ulriregistry.azurecr.io/api:latest" },
+    "AciPort": { "value": 8080 },
+    "AciClientId": { "value": "String" },
+    "AciTenantId": { "value": "String" },
+    "AciSecret": { "value": "String" },
+    "AppConfigEndpoint": { "value": "String" },
+    "RegistryServer": { "value": "string" },
+    "RegistryUsername": { "value": "string" },
+    "RegistryPassword": { "value": "securestring" }
+  }
+}
