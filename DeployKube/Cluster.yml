@@ -194,7 +194,7 @@ spec:
       metadata:
         queueName: contentsafetymessage
         messageCount: "2"
-        namespace: ulrSb
+        namespace: ulrSbu
 
 ---
 apiVersion: apps/v1
@@ -253,7 +253,7 @@ spec:
       metadata:
         queueName: imageresizemessage
         messageCount: "2"
-        namespace: ulrSb
+        namespace: ulrSbu
 
 ---
 apiVersion: apps/v1
