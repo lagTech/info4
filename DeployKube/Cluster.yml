@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: idaaregistry.azurecr.io/api:latest
+          image: ulrregistry.azurecr.io/api:latest
           ports:
             - containerPort: 8080
           env:
@@ -76,7 +76,7 @@ spec:
     spec:
       containers:
         - name: mvc
-          image: idaaregistry.azurecr.io/mvc:latest
+          image: ulrregistry.azurecr.io/mvc:latest
           ports:
             - containerPort: 8081
           resources:
@@ -143,7 +143,7 @@ spec:
     spec:
       containers:
         - name: worker-content
-          image: idaaregistry.azurecr.io/worker_content:latest
+          image: ulrregistry.azurecr.io/worker_content:latest
           env:
             - name: AppConfigurationEndpoints
               valueFrom:
@@ -194,7 +194,7 @@ spec:
       metadata:
         queueName: contentsafetymessage
         messageCount: "2"
-        namespace: idaaSb
+        namespace: ulrSb
 
 ---
 apiVersion: apps/v1
@@ -213,7 +213,7 @@ spec:
     spec:
       containers:
         - name: worker-image
-          image: idaaregistry.azurecr.io/worker_image:latest
+          image: ulrregistry.azurecr.io/worker_image:latest
           env:
             - name: AppConfigurationEndpoints
               valueFrom:
@@ -253,7 +253,7 @@ spec:
       metadata:
         queueName: imageresizemessage
         messageCount: "2"
-        namespace: idaaSb
+        namespace: ulrSb
 
 ---
 apiVersion: apps/v1
@@ -272,7 +272,7 @@ spec:
     spec:
       containers:
         - name: worker-db
-          image: idaaregistry.azurecr.io/worker_db:latest
+          image: ulrregistry.azurecr.io/worker_db:latest
           env:
             - name: AppConfigurationEndpoints
               valueFrom:
