@@ -4,14 +4,16 @@
 # https://aka.ms/yaml
 
 trigger:
-- master
+- main
 
-pool: "default"
+name: KubernetesDeployment
+
+pool: new_agent_pool
 
 variables:
   # Resource group ainsi que l'acronyme utiliser pour créer le nom des resources
 - name: RG
-  value: 'ulri'
+  value: 'ulr'
 
 - name: AzureSubscription
   value: 'info4'
@@ -35,7 +37,7 @@ variables:
   value: 'DeployKube'
 
 - name: AppConfigEndpoint # Ont pourrait apporter la variable du premier pipeline ...
-  value: 'https://ulriappconfiguration.azconfig.io'  
+  value: 'https://lacappconfiguration.azconfig.io'  
 
 steps:
   - task: AzureCLI@2
@@ -92,7 +94,7 @@ steps:
     displayName: 'Reading Secrets'
     inputs:
       azureSubscription: $(AzureSubscription)
-      KeyVaultName: 'ulriKeyVault'
+      KeyVaultName: 'ulrKeyVault'
       SecretsFilter: 'ClientID,TenantID,ClientSecret,ConnectionStringSB,ConnectionStringEventHub,ConnectionStringBlob'
       RunAsPreJob: false
 
