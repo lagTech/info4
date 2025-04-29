@@ -3,13 +3,13 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "clusterName": {
-      "value": "ulriKube"
+      "value": "ulrKube"
     },
     "location": {
       "value": "eastus"
     },
     "dnsPrefix": {
-      "value": "ulrikube"
+      "value": "ulrkube"
     },
     "osDiskSizeGB": {
       "value": 0
