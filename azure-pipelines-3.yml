@@ -8,7 +8,8 @@ trigger:
 
 name: KubernetesDeployment
 
-pool: new_agent_pool
+pool:
+  vmImage: ubuntu-latest
 
 variables:
   # Resource group ainsi que l'acronyme utiliser pour créer le nom des resources
@@ -44,7 +45,7 @@ steps:
     displayName: Create SSH Key for Kube
     inputs:
       azureSubscription: $(AzureSubscription)
-      scriptType: 'ps'
+      scriptType: 'bash'
       scriptLocation: 'inlineScript'
       inlineScript: |
         # Check if the SSH key exists
